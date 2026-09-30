@@ -4,6 +4,7 @@ import { store, useStoreVersion } from "../store";
 import { eth, resolveMedia, safeLink, short, xyOf, type Rect } from "../utils";
 import { AddressLink } from "./SidePanel";
 import { Sparkline } from "./Sparkline";
+import { TreasuryPanel } from "./TreasuryPanel";
 import { CORNER_IDS, SPECIAL_TIERS, TIERS, Tier, tierOf } from "../tiers";
 
 type Props = { onFocus: (r: Rect) => void };
@@ -57,6 +58,8 @@ export function MarketView({ onFocus }: Props) {
 
   return (
     <div className="market">
+      <TreasuryPanel />
+
       <section className="kpis">
         <Kpi label="Blocks minted" value={store.minted.toLocaleString()} sub={`${pct}% of 1,000,000`} />
         <Kpi label="Map value" value={`${eth(data.marketCap, 3)} Ξ`} sub="sum of last prices" />

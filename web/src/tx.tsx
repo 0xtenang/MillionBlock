@@ -7,7 +7,7 @@ import { CHAIN, explorer } from "./config";
 type TxRequest = {
   address: Address;
   abi: typeof millionBlockAbi;
-  functionName: "mint" | "mintAndSetContent" | "setContent" | "list" | "delist" | "buy";
+  functionName: "mint" | "mintAndSetContent" | "setContent" | "list" | "delist" | "buy" | "withdrawProtocol";
   args: readonly unknown[];
   value?: bigint;
 };

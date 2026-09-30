@@ -228,3 +228,9 @@ button.ghost { background: transparent; border: 1px solid var(--line); border-ra
 .upload-btn.busy { opacity: 0.6; cursor: progress; }
 .upload-btn input { display: none; }
 .warn-text { color: var(--warn); }
+
+/* owner-only protocol revenue */
+.treasury {
+  background: var(--panel); border: 1px solid var(--accent); border-radius: var(--radius); padding: 14px;
+  display: grid; gap: 8px; margin-bottom: 14px;
+}
