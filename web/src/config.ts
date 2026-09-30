@@ -36,7 +36,14 @@ const rpcUrl: string = env.VITE_RPC_URL || CHAIN.rpcUrls.default.http[0];
 const deployment = (deployments as Record<string, { address: Address; deployBlock: number }>)[String(CHAIN.id)];
 export const CONTRACT: Address | undefined = (env.VITE_CONTRACT_ADDRESS as Address | undefined) || deployment?.address;
 export const DEPLOY_BLOCK = BigInt(env.VITE_DEPLOY_BLOCK ?? deployment?.deployBlock ?? 0);
-export const LOG_CHUNK = BigInt(env.VITE_LOG_CHUNK ?? 50_000);
+// Public Robinhood RPC allows ~500 blocks per eth_getLogs and rate-limits bursts.
+export const LOG_CHUNK = BigInt(env.VITE_LOG_CHUNK ?? 500);
+// Etherscan-compatible explorer API used to load event history in bulk (Blockscout).
+const EXPLORER_APIS: Record<number, string> = {
+  4663: "https://robinhoodchain.blockscout.com/api",
+  46630: "https://explorer.testnet.chain.robinhood.com/api",
+};
+export const INDEXER_API: string = env.VITE_INDEXER_API ?? EXPLORER_APIS[CHAIN.id] ?? "";
 
 export const GRID = 1000;
 export const PRIMARY_PRICE = 400_000_000_000_000n; // 0.0004 ETH

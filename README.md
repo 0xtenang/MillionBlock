@@ -149,7 +149,7 @@ Features:
 - **Market**: KPIs (minted, map value, floor, volume, holders, fees), a price index chart, an ecosystem directory of projects ranked by the value of their blocks, open listings and recent sales. Click any row to fly to that spot on the map.
 - Wallet: any injected wallet (MetaMask, Rabby, Coinbase, Robinhood Wallet browser…). The app prompts the user to switch to or add Robinhood Chain.
 
-State comes from a client-side indexer (`web/src/store.ts`) that replays the contract's events into typed arrays and polls for new ones every 4s. That works well at launch. As volume grows, point the same data shape at a hosted indexer (Ponder, Goldsky, The Graph) so clients don't replay the full history.
+State comes from a client-side indexer (`web/src/store.ts`) that replays the contract's events into typed arrays. It loads the history in bulk from Blockscout's API, then follows new blocks through the RPC every 4s, in ≤500-block windows with backoff on rate limits (the public Robinhood RPC caps `eth_getLogs` at about 500 blocks and throttles bursts). If Blockscout is unreachable it falls back to the RPC alone. That works well at launch. As volume grows, point the same data shape at a hosted indexer (Ponder, Goldsky, The Graph) so clients don't replay the full history.
 
 ## Before mainnet
 
