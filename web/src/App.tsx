@@ -1,20 +1,31 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { zeroAddress } from "viem";
 import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
 import { GridCanvas, type Tool, type ViewMode } from "./components/GridCanvas";
 import { MarketView } from "./components/MarketView";
+import { Leaderboard } from "./components/Leaderboard";
+import { STATUS, fmtPct, fmtUsd, market, statusOf, useMarketVersion } from "./market";
 import { SidePanel } from "./components/SidePanel";
 import { CHAIN, CONTRACT, GRID } from "./config";
 import { store, useStoreVersion } from "./store";
-import { eth, short, xyOf, type Rect } from "./utils";
+import { blockNo, eth, short, xyOf, type Rect } from "./utils";
 import { SPECIAL_TIERS, TIERS, tierLabel, tierOf } from "./tiers";
 
-type Page = "map" | "market" | "about";
+type Page = "map" | "leaderboard" | "market" | "about";
 
 export function App() {
-  useStoreVersion();
+  const version = useStoreVersion();
+  useMarketVersion();
+
+  // Track live market data for every token attached to a visible publication.
+  useEffect(() => {
+    const tokens: string[] = [];
+    for (const c of store.contents.values()) if (!c.hidden && c.token !== zeroAddress) tokens.push(c.token);
+    market.track(tokens);
+  }, [version]);
   const { address } = useAccount();
   const [page, setPage] = useState<Page>("map");
-  const [mode, setMode] = useState<ViewMode>("map");
+  const [mode, setMode] = useState<ViewMode>("live");
   const [tool, setTool] = useState<Tool>("select");
   const [selection, setSelection] = useState<Rect | null>(null);
   const [focus, setFocus] = useState<{ rect: Rect; nonce: number } | null>(null);
@@ -37,9 +48,9 @@ export function App() {
           <span>Million<b>Block</b></span>
         </div>
         <nav className="pages">
-          {(["map", "market", "about"] as Page[]).map((p) => (
+          {(["map", "leaderboard", "market", "about"] as Page[]).map((p) => (
             <button key={p} className={page === p ? "active" : ""} onClick={() => setPage(p)}>
-              {p === "map" ? "Map" : p === "market" ? "Market" : "About"}
+              {p === "map" ? "Map" : p === "leaderboard" ? "🏆 Board" : p === "market" ? "Market" : "About"}
             </button>
           ))}
         </nav>
@@ -57,9 +68,9 @@ export function App() {
         <main className="map-page">
           <div className="map-toolbar">
             <div className="seg">
-              {(["map", "market", "owners"] as ViewMode[]).map((m) => (
-                <button key={m} className={mode === m ? "active" : ""} onClick={() => setMode(m)}>
-                  {m === "map" ? "Map" : m === "market" ? "Heatmap" : "Owners"}
+              {(["live", "map", "market", "owners"] as ViewMode[]).map((m) => (
+                <button key={m} className={mode === m ? "active" : ""} onClick={() => setMode(m)} title={m === "live" ? "Live token prices on every block" : undefined}>
+                  {m === "live" ? "● Live" : m === "map" ? "Images" : m === "market" ? "Heatmap" : "Owners"}
                 </button>
               ))}
             </div>
@@ -102,6 +113,7 @@ export function App() {
         </main>
       )}
 
+      {page === "leaderboard" && <Leaderboard onFocus={focusOn} />}
       {page === "market" && <MarketView onFocus={focusOn} />}
       {page === "about" && <About />}
     </div>
@@ -113,11 +125,19 @@ function HoverCard({ id, x, y }: { id: number; x: number; y: number }) {
   const owner = store.ownerOf(id);
   const c = store.contentAt(id);
   const l = store.listings.get(id);
+  const m = c && !c.hidden && c.token !== zeroAddress ? market.get(c.token) : undefined;
   return (
     <div className="hover-card" style={{ left: x + 14, top: y + 14 }}>
-      <div className="mono small">#{id} · ({bx}, {by})</div>
+      <div className="mono small">{blockNo(id)} · ({bx}, {by})</div>
       {tierLabel(id) && <div className="small" style={{ color: TIERS[tierOf(id) as 1 | 2 | 3].color, fontWeight: 650 }}>{tierLabel(id)}</div>}
       {c && !c.hidden && c.title && <div className="content-title">{c.title}</div>}
+      {m && (
+        <div className="small">
+          <b>${m.symbol}</b> {fmtUsd(m.priceUsd)}{" "}
+          <b style={{ color: m.change24h >= 0 ? STATUS.up.color : STATUS.down.color }}>{fmtPct(m.change24h)}</b>
+          {m.mcap ? <span className="muted"> · MCAP {fmtUsd(m.mcap)}</span> : null} {STATUS[statusOf(m)].emoji}
+        </div>
+      )}
       {owner ? (
         <>
           <div className="small">Owner {short(owner)}</div>

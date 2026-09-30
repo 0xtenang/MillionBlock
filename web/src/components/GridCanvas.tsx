@@ -2,9 +2,11 @@ import { useEffect, useRef } from "react";
 import { GRID } from "../config";
 import { store, useStoreVersion } from "../store";
 import { CORNER_IDS, TIERS, Tier, tierOf } from "../tiers";
+import { STATUS, fmtPct, fmtUsd, market, statusOf, useMarketVersion, type TokenMarket } from "../market";
+import type { Content } from "../store";
 import { heatColor, ownerColor, resolveMedia, type Rect } from "../utils";
 
-export type ViewMode = "map" | "market" | "owners";
+export type ViewMode = "map" | "live" | "market" | "owners";
 export type Tool = "select" | "pan";
 
 type Props = {
@@ -20,9 +22,11 @@ type Props = {
 type View = { scale: number; ox: number; oy: number };
 
 const imageCache = new Map<string, HTMLImageElement | "loading" | "error">();
+const ZERO = "0x0000000000000000000000000000000000000000";
 
 export function GridCanvas({ mode, tool, selection, onSelect, onHover, myIdx, focus }: Props) {
   const version = useStoreVersion();
+  const marketVersion = useMarketVersion();
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const baseRef = useRef<HTMLCanvasElement | null>(null);
@@ -90,7 +94,7 @@ export function GridCanvas({ mode, tool, selection, onSelect, onHover, myIdx, fo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version, mode, myIdx]);
 
-  useEffect(requestDraw, [selection]);
+  useEffect(requestDraw, [selection, marketVersion]);
 
   // ---- sizing -----------------------------------------------------------------
   useEffect(() => {
@@ -172,31 +176,21 @@ export function GridCanvas({ mode, tool, selection, onSelect, onHover, myIdx, fo
     // visible world rect
     const vx0 = -ox / scale, vy0 = -oy / scale, vx1 = (w - ox) / scale, vy1 = (h - oy) / scale;
 
-    if (props.current.mode === "map") {
+    const mode = props.current.mode;
+    if (mode === "map" || mode === "live") {
       ctx.imageSmoothingEnabled = true;
+      // Painter's order (ascending content id): later publications cover earlier ones.
       for (const content of store.contents.values()) {
         if (content.hidden) continue;
         if (content.x > vx1 || content.y > vy1 || content.x + content.w < vx0 || content.y + content.h < vy0) continue;
-        const src = resolveMedia(content.image);
-        if (!src) continue;
-        const img = imageCache.get(src);
-        if (img === undefined) {
-          imageCache.set(src, "loading");
-          const el = new Image();
-          el.decoding = "async";
-          el.referrerPolicy = "no-referrer";
-          el.onload = () => { imageCache.set(src, el); requestDraw(); };
-          el.onerror = () => imageCache.set(src, "error");
-          el.src = src;
-        } else if (img !== "loading" && img !== "error") {
-          ctx.drawImage(img, content.x, content.y, content.w, content.h);
-        }
+        const m = content.token !== ZERO ? market.get(content.token) : undefined;
+        const src = resolveMedia(content.image) ?? (m?.imageUrl ? resolveMedia(m.imageUrl) : null);
+        const img = src ? loadImage(src) : null;
+        if (img) ctx.drawImage(img, content.x, content.y, content.w, content.h);
+        if (m) drawTicker(ctx, content, m, mode === "live", scale);
       }
-      // Blocks that changed hands or were overwritten show their own content on top,
-      // painter's order (ascending content id) already guarantees the latest wins.
     }
 
-    // grid lines when zoomed in
     const px = 1 / scale;
     if (scale * dpr >= 7) {
       ctx.strokeStyle = "rgba(255,255,255,0.06)";
@@ -229,6 +223,86 @@ export function GridCanvas({ mode, tool, selection, onSelect, onHover, myIdx, fo
       ctx.strokeStyle = "rgba(255,255,255,0.9)";
       ctx.lineWidth = 1.5 * px;
       ctx.strokeRect(hx, hy, 1, 1);
+    }
+  }
+
+  function loadImage(src: string): HTMLImageElement | null {
+    const img = imageCache.get(src);
+    if (img === undefined) {
+      imageCache.set(src, "loading");
+      const el = new Image();
+      el.decoding = "async";
+      el.referrerPolicy = "no-referrer";
+      el.onload = () => { imageCache.set(src, el); requestDraw(); };
+      el.onerror = () => imageCache.set(src, "error");
+      el.src = src;
+      return null;
+    }
+    return img === "loading" || img === "error" ? null : img;
+  }
+
+  // ---- live market overlay for blocks that represent a token -----------------
+  function drawTicker(ctx: CanvasRenderingContext2D, c: Content, m: TokenMarket, full: boolean, scale: number) {
+    const st = statusOf(m);
+    const up = m.change24h >= 0;
+    const color = st === "ath" || st === "new" ? STATUS[st].color : up ? STATUS.up.color : STATUS.down.color;
+    const rw = c.w * scale, rh = c.h * scale; // on-screen CSS px
+    const u = 1 / scale; // one CSS px in world units
+
+    // pulse border: stronger for bigger moves
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, 0.45 + Math.abs(m.change24h) / 25);
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10;
+    ctx.lineWidth = 2 * u;
+    ctx.strokeRect(c.x + u, c.y + u, c.w - 2 * u, c.h - 2 * u);
+    ctx.restore();
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const cx = c.x + c.w / 2;
+
+    if (full && rw >= 34 && rh >= 16) {
+      ctx.fillStyle = "rgba(8,10,8,0.8)";
+      ctx.fillRect(c.x + 2 * u, c.y + 2 * u, c.w - 4 * u, c.h - 4 * u);
+      const lines: [string, string, boolean][] = [
+        [`$${m.symbol}`, "#ffffff", true],
+        [fmtUsd(m.priceUsd), "#e8f0e6", false],
+        [fmtPct(m.change24h), up ? STATUS.up.color : STATUS.down.color, true],
+      ];
+      if (m.mcap) lines.push([`MCAP ${fmtUsd(m.mcap)}`, "#8a9a8c", false]);
+      const fs = Math.max(7, Math.min(30, rw / 6.5, rh / (lines.length * 1.4)));
+      const n = Math.max(1, Math.min(lines.length, Math.floor(rh / (fs * 1.35))));
+      const shown = n >= lines.length ? lines : n === 1 ? [lines[0]] : n === 2 ? [lines[0], lines[2]] : lines.slice(0, 3);
+      const lh = fs * 1.3 * u;
+      let y = c.y + c.h / 2 - ((shown.length - 1) * lh) / 2;
+      for (const [text, fill, bold] of shown) {
+        ctx.font = `${bold ? 700 : 500} ${fs * u}px ui-sans-serif, system-ui, sans-serif`;
+        ctx.fillStyle = fill;
+        ctx.fillText(text, cx, y, c.w * 0.78);
+        y += lh;
+      }
+    } else if (!full && rw >= 56 && rh >= 22) {
+      // compact pill at the bottom of the block's image
+      const fs = Math.min(13, rw / 9);
+      const label = `$${m.symbol} ${fmtPct(m.change24h)}`;
+      ctx.font = `700 ${fs * u}px ui-sans-serif, system-ui, sans-serif`;
+      const tw = Math.min(ctx.measureText(label).width + 8 * u, c.w - 4 * u);
+      const py = c.y + c.h - (fs + 8) * u;
+      ctx.fillStyle = "rgba(8,10,8,0.82)";
+      ctx.fillRect(cx - tw / 2, py, tw, (fs + 6) * u);
+      ctx.fillStyle = up ? STATUS.up.color : STATUS.down.color;
+      ctx.fillText(label, cx, py + ((fs + 6) * u) / 2, tw - 4 * u);
+    }
+
+    // status badge 🚀 🆕 🟢 🔴 in the top-right corner
+    if (st !== "flat" && Math.min(rw, rh) >= 10) {
+      const bs = Math.max(9, Math.min(22, rw * 0.2, rh * 0.22));
+      ctx.font = `${bs * u}px sans-serif`;
+      ctx.textAlign = "right";
+      ctx.textBaseline = "top";
+      ctx.fillText(STATUS[st].emoji, c.x + c.w - 2 * u, c.y + 2 * u);
     }
   }
 

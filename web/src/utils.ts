@@ -20,6 +20,9 @@ export function eth(wei: bigint | undefined, digits = 4) {
   return n.toLocaleString(undefined, { maximumFractionDigits: digits });
 }
 
+/** Display number for a block, e.g. #0001. */
+export const blockNo = (id: number) => `#${String(id).padStart(4, "0")}`;
+
 export const short = (a?: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "");
 
 /** Resolve user supplied image refs into something an <img> can load. */

@@ -7,6 +7,7 @@ import { store, useStoreVersion, type Content } from "../store";
 import { TxStatus, useTx } from "../tx";
 import { eth, rectIds, resolveMedia, safeLink, short, xyOf, type Rect } from "../utils";
 import { Sparkline } from "./Sparkline";
+import { STATUS, fmtPct, fmtUsd, market, statusOf, useMarketVersion } from "../market";
 import { SPECIAL_TIERS, TIERS, Tier, tierLabel, tierOf } from "../tiers";
 
 type Props = { selection: Rect; onClose: () => void };
@@ -136,10 +137,14 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function ContentCard({ c }: { c: Content }) {
-  const img = resolveMedia(c.image);
+  useMarketVersion();
+  const m = c.token !== zeroAddress ? market.get(c.token) : undefined;
+  const st = m ? statusOf(m) : "flat";
+  const img = resolveMedia(c.image) ?? (m?.imageUrl ? resolveMedia(m.imageUrl) : null);
   const link = safeLink(c.url);
   const stats = store.contentStats(c.id);
   return (
+    <>
     <div className="content-card">
       {img && <img src={img} alt={c.title} referrerPolicy="no-referrer" />}
       <div className="content-meta">
@@ -162,6 +167,25 @@ function ContentCard({ c }: { c: Content }) {
         </div>
       </div>
     </div>
+    {m && (
+      <div className="live-card" style={{ borderColor: st !== "flat" ? STATUS[st].color : undefined }}>
+        <div className="row-between">
+          <b>${m.symbol}</b>
+          {st !== "flat" && <span className="small" style={{ color: STATUS[st].color }}>{STATUS[st].emoji} {STATUS[st].label}</span>}
+        </div>
+        <div className="live-price">
+          {fmtUsd(m.priceUsd)} <span style={{ color: m.change24h >= 0 ? STATUS.up.color : STATUS.down.color }}>{fmtPct(m.change24h)}</span>
+        </div>
+        <div className="live-grid small">
+          <span>MCAP</span><b>{fmtUsd(m.mcap)}</b>
+          <span>Liquidity</span><b>{fmtUsd(m.liquidity)}</b>
+          <span>Vol 24h</span><b>{fmtUsd(m.volume24h)}</b>
+          <span>ATH</span><b>{fmtUsd(m.ath)}</b>
+        </div>
+        <a className="small" href={m.dexUrl} target="_blank" rel="noopener noreferrer">Chart on DexScreener ↗</a>
+      </div>
+    )}
+    </>
   );
 }
 

@@ -25,6 +25,21 @@ A few positions are naturally scarce. The rules live in the contract as a pure f
 
 The tier shows up in `getBlocks`, in the NFT name (e.g. "MillionBlock #1 Genesis"), as a `tier` trait, and in the placeholder artwork. On the website, tiers get their own map borders, badges and Market stats.
 
+## Live board and leaderboard
+
+Blocks that have a token/project contract attached become **live**. The website pulls market data and redraws the board. Everything here runs on the website only; no contract changes were needed.
+
+- **Live view** (the default map view): each project's area shows a ticker card with `$SYMBOL`, price, 24h change and market cap, and a border that glows green or red depending on the move.
+- **Status badges**: 🚀 at or within 2% of all-time high · 🆕 pool created in the last 72h · 🟢 up ≥ 10% in 24h · 🔴 down ≥ 10% in 24h.
+- **🏆 Board page**:
+  - projects ranked by blocks held (grouped by token address)
+  - top gainers and losers
+  - 💰 most valuable blocks (by last sale)
+  - 👥 top holders
+- **Data sources**: [DexScreener](https://docs.dexscreener.com/api/reference) for price, 24h change, MCAP, liquidity, volume and pool age, refreshed every 60s from each visitor's browser (free, no API key). [GeckoTerminal](https://api.geckoterminal.com/docs/index.html) daily candles for the ATH, fetched slowly and cached for 6h because of its rate limit.
+- The chain slugs are configurable (`VITE_DEXSCREENER_CHAIN`, `VITE_GECKO_NETWORK`). `VITE_MARKET_DEMO=1` shows fake prices for local demos.
+- Anyone can attach any token address to blocks they own, so a project on the board is self-declared, not an endorsement.
+
 ## What users can do
 
 - **Buy blocks**: drag a rectangle on the map (up to 20×20 = 400 blocks per tx) and mint at 0.0004 ETH each. Content can be published in the same transaction.

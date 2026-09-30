@@ -6,10 +6,12 @@ const { ethers } = require("hardhat");
 
 const PRICE = ethers.parseEther("0.0004");
 const DEMO = [
-  { x: 480, y: 480, w: 20, h: 20, title: "Robinhood Chain", url: "https://robinhood.com", color: "#c3f53c" },
-  { x: 100, y: 120, w: 20, h: 10, title: "Degen DEX", url: "https://example.com/dex", color: "#ff5b2e" },
-  { x: 700, y: 200, w: 15, h: 15, title: "USDG Vault", url: "https://example.com/vault", color: "#3cb4f5" },
-  { x: 300, y: 760, w: 10, h: 10, title: "Hood Frogs", url: "https://example.com/frogs", color: "#8f5bff" },
+  { x: 480, y: 480, w: 20, h: 20, title: "Robinhood Chain", url: "https://robinhood.com", color: "#c3f53c", token: "0x1111111111111111111111111111111111111111" },
+  { x: 100, y: 120, w: 20, h: 10, title: "Degen DEX", url: "https://example.com/dex", color: "#ff5b2e", token: "0x2222222222222222222222222222222222222222" },
+  { x: 700, y: 200, w: 15, h: 15, title: "USDG Vault", url: "https://example.com/vault", color: "#3cb4f5", token: "0x3333333333333333333333333333333333333333" },
+  { x: 300, y: 760, w: 10, h: 10, title: "Hood Frogs", url: "https://example.com/frogs", color: "#8f5bff", token: "0x4444444444444444444444444444444444444444" },
+  { x: 520, y: 440, w: 12, h: 8, title: "Pons Launchpad", url: "https://example.com/pons", color: "#ffd24a", token: "0x5555555555555555555555555555555555555555" },
+  { x: 1, y: 0, w: 10, h: 1, title: "Genesis Club", url: "https://example.com/genesis", color: "#ff3c8c", token: ethers.ZeroAddress },
 ];
 
 const svg = (text, color) =>
@@ -26,7 +28,7 @@ async function main() {
 
   for (const [i, d] of DEMO.entries()) {
     const s = signers[i + 1];
-    await (await mb.connect(s).mintAndSetContent(d.x, d.y, d.w, d.h, svg(d.title, d.color), d.url, d.title, ethers.ZeroAddress, { value: PRICE * BigInt(d.w * d.h) })).wait();
+    await (await mb.connect(s).mintAndSetContent(d.x, d.y, d.w, d.h, svg(d.title, d.color), d.url, d.title, d.token, { value: PRICE * BigInt(d.w * d.h) })).wait();
     console.log(`Seeded ${d.title}`);
   }
   // A few secondary listings + sales so the market view has data.
@@ -34,6 +36,12 @@ async function main() {
   await (await mb.connect(signers[1]).list(ids, ids.map(() => ethers.parseEther("0.002")))).wait();
   await (await mb.connect(signers[6]).buy([ids[0]], { value: ethers.parseEther("0.002") })).wait();
   await (await mb.connect(signers[1]).list([481 * 1000 + 490], [ethers.parseEther("0.003")])).wait();
+  // A few flips so "Most valuable blocks" has entries (Genesis #1 goes for a premium).
+  const g = signers[6];
+  await (await mb.connect(g).list([1], [ethers.parseEther("0.5")])).wait();
+  await (await mb.connect(signers[7]).buy([1], { value: ethers.parseEther("0.5") })).wait();
+  await (await mb.connect(signers[2]).list([120 * 1000 + 105], [ethers.parseEther("0.03")])).wait();
+  await (await mb.connect(signers[8]).buy([120 * 1000 + 105], { value: ethers.parseEther("0.03") })).wait();
   console.log("Seeded market activity");
 }
 
