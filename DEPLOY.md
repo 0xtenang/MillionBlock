@@ -29,6 +29,13 @@ Or add it by hand: in MetaMask go to **Networks → Add network → Add a networ
 ### 3. Get free test ETH
 Open https://faucet.testnet.chain.robinhood.com, paste your wallet address (click your account name in MetaMask to copy it), and request ETH. Wait until it shows up in MetaMask while the testnet network is selected.
 
+> **Robinhood's site blocked in your country?** The manual network setup above works without it. For test ETH, use one of these faucets instead:
+> - QuickNode: https://faucet.quicknode.com/robinhood/testnet (no account needed, one claim every 12h)
+> - Alchemy: https://www.alchemy.com/faucets (free account, pick Robinhood Chain Testnet)
+> - Chainlink: https://faucets.chain.link
+>
+> If MetaMask can't load the balance or transactions hang, the public RPC may also be blocked. Create a free Robinhood Chain Testnet endpoint at Alchemy or QuickNode, and put that URL in MetaMask's **RPC URL** field instead. Also add it as `VITE_RPC_URL` in Vercel.
+
 ---
 
 ## Part B: Deploy the contract with Remix
