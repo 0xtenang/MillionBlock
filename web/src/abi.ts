@@ -1,18 +1,7 @@
 // Generated from contracts/artifacts — run `npm run abi` in /contracts after changing the contract.
 export const millionBlockAbi = [
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "initialOwner",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "treasury_",
-        "type": "address"
-      }
-    ],
+    "inputs": [],
     "stateMutability": "nonpayable",
     "type": "constructor"
   },
@@ -660,6 +649,19 @@ export const millionBlockAbi = [
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "INITIAL_TREASURY",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",

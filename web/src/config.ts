@@ -30,7 +30,7 @@ export const localhost = defineChain({
 const env = import.meta.env;
 const chains: Record<number, Chain> = { 4663: robinhood, 46630: robinhoodTestnet, 31337: localhost };
 
-export const CHAIN: Chain = chains[Number(env.VITE_CHAIN_ID ?? 46630)] ?? robinhoodTestnet;
+export const CHAIN: Chain = chains[Number(env.VITE_CHAIN_ID ?? 4663)] ?? robinhood;
 const rpcUrl: string = env.VITE_RPC_URL || CHAIN.rpcUrls.default.http[0];
 
 const deployment = (deployments as Record<string, { address: Address; deployBlock: number }>)[String(CHAIN.id)];

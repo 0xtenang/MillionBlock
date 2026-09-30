@@ -1,21 +1,20 @@
 // Deploys MillionBlock and records the address for the web app.
 //   npx hardhat run scripts/deploy.js --network robinhoodTestnet
-// Env: PRIVATE_KEY (deployer), TREASURY (optional, defaults to deployer)
+// Env: PRIVATE_KEY (deployer, becomes owner). Treasury is hardcoded in the contract.
 const fs = require("fs");
 const path = require("path");
 const { ethers, network } = require("hardhat");
 
 async function main() {
   const [deployer] = await ethers.getSigners();
-  const treasury = process.env.TREASURY || deployer.address;
   const { chainId } = await ethers.provider.getNetwork();
 
   console.log(`Deploying MillionBlock to ${network.name} (${chainId}) from ${deployer.address}`);
   const MB = await ethers.getContractFactory("MillionBlock");
-  const mb = await MB.deploy(deployer.address, treasury);
+  const mb = await MB.deploy();
   const receipt = await mb.deploymentTransaction().wait();
   const address = await mb.getAddress();
-  console.log(`MillionBlock: ${address} (block ${receipt.blockNumber}), treasury ${treasury}`);
+  console.log(`MillionBlock: ${address} (block ${receipt.blockNumber}), treasury ${await mb.treasury()}`);
 
   const file = path.join(__dirname, "..", "..", "web", "src", "deployments.json");
   const deployments = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : {};

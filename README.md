@@ -44,7 +44,7 @@ Main functions:
 | `buy(ids[])` | Buy listed blocks: 2% fee to protocol, 98% to seller, excess refunded |
 | `getBlocks(ids[])`, `getContent(id)`, `contentIdOf(id)` | Batch views |
 | `tokenURI(id)` | Fully on-chain JSON metadata (falls back to an SVG placeholder) |
-| `withdrawProtocol()` | Sends primary revenue + fees to `treasury` |
+| `withdrawProtocol()` | Sends primary revenue + fees to `treasury` (starts as `0x3c8A4d94B3219F6633F2cC94094f4765b30c691C`, owner can change it with `setTreasury`) |
 | `moderate(contentId, hidden)` | Owner-only: hide abusive content from the app and tokenURI |
 | `withdrawPending()` | Pull fallback for sellers whose address rejected a direct ETH payment |
 
@@ -67,7 +67,6 @@ npm run seed:local              # optional demo projects + trades
 
 # Robinhood Chain
 export PRIVATE_KEY=0x...        # deployer (becomes contract owner)
-export TREASURY=0x...           # optional, defaults to deployer
 npm run deploy:testnet          # chain 46630
 npm run deploy:mainnet          # chain 4663
 ```
@@ -97,5 +96,5 @@ State comes from a client-side indexer (`web/src/store.ts`) that replays the con
 ## Before mainnet
 
 - Get an external audit of `MillionBlock.sol`.
-- Deploy with a multisig as `initialOwner` and `TREASURY`.
+- The deployer wallet becomes the owner (moderation + `setTreasury`). Use a secure wallet, and consider `transferOwnership` to a multisig after launch.
 - Decide on a content moderation policy. `moderate()` hides content in the official app and in `tokenURI`, but the raw data stays on-chain.

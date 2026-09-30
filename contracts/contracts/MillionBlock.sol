@@ -132,10 +132,13 @@ contract MillionBlock is ERC721, ERC2981, Ownable, ReentrancyGuard {
     error TransferFailed();
     error ZeroAddress();
 
-    constructor(address initialOwner, address treasury_) ERC721("MillionBlock", "MBLOCK") Ownable(initialOwner) {
-        if (treasury_ == address(0)) revert ZeroAddress();
-        treasury = treasury_;
-        _setDefaultRoyalty(treasury_, FEE_BPS);
+    /// @dev Protocol treasury at launch: receives primary sales, the 2% marketplace fee and royalties.
+    address public constant INITIAL_TREASURY = 0x3c8A4d94B3219F6633F2cC94094f4765b30c691C;
+
+    /// @notice No constructor arguments: the deployer becomes owner, revenue goes to INITIAL_TREASURY.
+    constructor() ERC721("MillionBlock", "MBLOCK") Ownable(msg.sender) {
+        treasury = INITIAL_TREASURY;
+        _setDefaultRoyalty(INITIAL_TREASURY, FEE_BPS);
         _contents.push(); // sentinel id 0
     }
 

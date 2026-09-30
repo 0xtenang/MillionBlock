@@ -3,14 +3,15 @@ const { ethers } = require("hardhat");
 const { loadFixture } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 
 const PRICE = ethers.parseEther("0.0004");
+const TREASURY = "0x3c8A4d94B3219F6633F2cC94094f4765b30c691C";
 const id = (x, y) => y * 1000 + x;
 
 describe("MillionBlock", function () {
   async function deploy() {
-    const [owner, treasury, alice, bob, carol] = await ethers.getSigners();
+    const [owner, alice, bob, carol] = await ethers.getSigners();
     const MB = await ethers.getContractFactory("MillionBlock");
-    const mb = await MB.deploy(owner.address, treasury.address);
-    return { mb, owner, treasury, alice, bob, carol };
+    const mb = await MB.deploy();
+    return { mb, owner, alice, bob, carol };
   }
 
   describe("primary mint", function () {
@@ -151,15 +152,21 @@ describe("MillionBlock", function () {
   });
 
   describe("protocol", function () {
-    it("withdraws revenue to treasury and exposes 2% royalty", async function () {
-      const { mb, owner, treasury, alice } = await loadFixture(deploy);
+    it("deployer is owner and revenue goes to the hardcoded treasury", async function () {
+      const { mb, owner, alice } = await loadFixture(deploy);
+      expect(await mb.owner()).to.equal(owner.address);
+      expect(await mb.treasury()).to.equal(TREASURY);
+
       await mb.connect(alice).mint(0, 0, 5, 5, { value: PRICE * 25n });
-      const before = await ethers.provider.getBalance(treasury.address);
-      await mb.connect(alice).withdrawProtocol();
-      expect(await ethers.provider.getBalance(treasury.address)).to.equal(before + PRICE * 25n);
+      const before = await ethers.provider.getBalance(TREASURY);
+      await mb.connect(alice).withdrawProtocol(); // anyone can trigger, funds only go to treasury
+      expect(await ethers.provider.getBalance(TREASURY)).to.equal(before + PRICE * 25n);
+      expect(await mb.protocolBalance()).to.equal(0);
+
       const [recv, amt] = await mb.royaltyInfo(0, 10000);
-      expect(recv).to.equal(treasury.address);
+      expect(recv).to.equal(TREASURY);
       expect(amt).to.equal(200);
+
       await expect(mb.connect(alice).setTreasury(alice.address)).to.be.revertedWithCustomError(mb, "OwnableUnauthorizedAccount");
       await mb.connect(owner).setTreasury(alice.address);
       expect(await mb.treasury()).to.equal(alice.address);
