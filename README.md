@@ -21,10 +21,13 @@
 - **Buy from others**: buy one or many listed blocks in one tx. The seller gets 98%, the protocol keeps 2%, and any overpayment is refunded.
 - **Watch market value**: every sale updates the block's last price. The app shows per-block price history, per-project value, a price index, floor, volume, and a **Heatmap** view of the whole grid.
 
+> **New to deploying?** Follow [DEPLOY.md](DEPLOY.md). It walks through deploying from the browser with Remix and MetaMask, then hosting on Vercel, with no terminal needed.
+
 ## Repo layout
 
 ```
 contracts/   Hardhat project: MillionBlock.sol, tests, deploy + seed scripts
+             flat/MillionBlock_flat.sol = single-file copy for Remix
 web/         Vite + React + wagmi/viem dApp (canvas map, trading panel, market page)
 ```
 
@@ -69,7 +72,7 @@ npm run deploy:testnet          # chain 46630
 npm run deploy:mainnet          # chain 4663
 ```
 
-The deploy script records `{address, deployBlock}` per chain in `web/src/deployments.json`, which the web app reads. After changing the contract, run `npm run abi` to regenerate `web/src/abi.ts`.
+The deploy script records `{address, deployBlock}` per chain in `web/src/deployments.json`, which the web app reads. After changing the contract, run `npm run abi` to regenerate `web/src/abi.ts` and `npm run flatten` to regenerate the Remix file.
 
 > The Hardhat config uses the `solc` npm package (0.8.28) as the compiler, so it builds without downloading from binaries.soliditylang.org.
 

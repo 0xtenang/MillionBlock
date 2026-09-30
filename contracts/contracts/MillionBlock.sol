@@ -403,19 +403,31 @@ contract MillionBlock is ERC721, ERC2981, Ownable, ReentrancyGuard {
         Content storage c = _contents[cid];
         bool show = cid != 0 && !c.hidden;
 
-        string memory image = show && bytes(c.image).length > 0 ? c.image : _placeholder(x, y);
-        uint256 lp = lastPrice[tokenId] == 0 ? PRIMARY_PRICE : lastPrice[tokenId];
-
-        bytes memory json = abi.encodePacked(
+        bytes memory head = abi.encodePacked(
             '{"name":"MillionBlock (',
             x.toString(),
             ",",
             y.toString(),
-            ')","description":"One of 1,000,000 blocks on the MillionBlock homepage, the living map of Robinhood Chain.",',
-            '"image":"',
-            _escape(image),
+            ')","description":"One of 1,000,000 blocks on the MillionBlock homepage, the living map of Robinhood Chain.","image":"',
+            _escape(show && bytes(c.image).length > 0 ? c.image : _placeholder(x, y)),
             '","external_url":"',
-            show ? _escape(c.url) : "",
+            show ? _escape(c.url) : ""
+        );
+        return string(
+            abi.encodePacked(
+                "data:application/json;base64,",
+                Base64.encode(abi.encodePacked(head, _attributes(tokenId, x, y, c, show)))
+            )
+        );
+    }
+
+    function _attributes(uint256 tokenId, uint256 x, uint256 y, Content storage c, bool show)
+        internal
+        view
+        returns (bytes memory)
+    {
+        uint256 lp = lastPrice[tokenId] == 0 ? PRIMARY_PRICE : lastPrice[tokenId];
+        return abi.encodePacked(
             '","attributes":[{"trait_type":"x","value":',
             x.toString(),
             '},{"trait_type":"y","value":',
@@ -428,7 +440,6 @@ contract MillionBlock is ERC721, ERC2981, Ownable, ReentrancyGuard {
             lp.toString(),
             "}]}"
         );
-        return string(abi.encodePacked("data:application/json;base64,", Base64.encode(json)));
     }
 
     function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC2981) returns (bool) {

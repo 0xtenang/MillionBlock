@@ -28,7 +28,7 @@ const accounts = PRIVATE_KEY ? [PRIVATE_KEY] : [];
 module.exports = {
   solidity: {
     version: SOLC_VERSION,
-    settings: { optimizer: { enabled: true, runs: 200 }, viaIR: true, evmVersion: "cancun" },
+    settings: { optimizer: { enabled: true, runs: 200 }, evmVersion: "cancun" },
   },
   networks: {
     robinhoodTestnet: {
