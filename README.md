@@ -13,6 +13,18 @@
 | Royalties | ERC-2981 at 2% to the treasury, for external marketplaces |
 | Chain | Robinhood Chain mainnet `4663`, testnet `46630` (Arbitrum Orbit L2, ETH gas) |
 
+## Special blocks (fixed forever)
+
+A few positions are naturally scarce. The rules live in the contract as a pure function, `tierOf(tokenId)`. There is no admin function that can add, remove or re-tier blocks, and every tier costs the same 0.0004 ETH to mint. The market decides what they're worth.
+
+| Tier | Blocks | Rule |
+|---|---|---|
+| 👑 Genesis | 100 | Token #1 – #100 (top row, next to the top-left corner). #1 is "The First Block" |
+| 🔥 Center | 10,000 | The middle 100×100 square: x and y from 450 to 549 |
+| ⭐ Corner | 4 | #0, #999, #999000, #999999 |
+
+The tier shows up in `getBlocks`, in the NFT name (e.g. "MillionBlock #1 Genesis"), as a `tier` trait, and in the placeholder artwork. On the website, tiers get their own map borders, badges and Market stats.
+
 ## What users can do
 
 - **Buy blocks**: drag a rectangle on the map (up to 20×20 = 400 blocks per tx) and mint at 0.0004 ETH each. Content can be published in the same transaction.
@@ -58,7 +70,7 @@ Design notes:
 ```bash
 cd contracts
 npm install
-npm test                        # 13 tests
+npm test                        # 17 tests
 
 # local chain + demo data
 npm run node                    # terminal 1

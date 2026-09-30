@@ -4,6 +4,7 @@ import { store, useStoreVersion } from "../store";
 import { eth, resolveMedia, safeLink, short, xyOf, type Rect } from "../utils";
 import { AddressLink } from "./SidePanel";
 import { Sparkline } from "./Sparkline";
+import { CORNER_IDS, SPECIAL_TIERS, TIERS, Tier, tierOf } from "../tiers";
 
 type Props = { onFocus: (r: Rect) => void };
 type Tab = "projects" | "listings" | "sales";
@@ -14,7 +15,7 @@ export function MarketView({ onFocus }: Props) {
 
   const data = useMemo(() => {
     const projects = [...store.contents.values()]
-      .filter((c) => !c.hidden)
+      .filter((c) => !c.hidden && (c.image || c.url || c.title))
       .map((c) => ({ c, ...store.contentStats(c.id) }))
       .filter((p) => p.blocks > 0)
       .sort((a, b) => (b.value > a.value ? 1 : b.value < a.value ? -1 : 0));
@@ -33,7 +34,22 @@ export function MarketView({ onFocus }: Props) {
       for (const [id, p] of store.lastPrice) if (store.ownerIdx[id]) v += p - PRIMARY_PRICE;
       return v;
     })();
-    return { projects, listings, sales, series, marketCap, holders: store.holders(), floor: store.floor() };
+    const tierStats = new Map<Tier, { minted: number; floor?: bigint; top?: bigint }>();
+    for (const t of SPECIAL_TIERS) tierStats.set(t, { minted: 0 });
+    const bump = (id: number) => {
+      const t = tierOf(id);
+      if (t === Tier.Standard || !store.ownerIdx[id]) return;
+      const st = tierStats.get(t)!;
+      st.minted++;
+      const l = store.listings.get(id);
+      if (l && (st.floor === undefined || l.price < st.floor)) st.floor = l.price;
+      const v = store.valueOf(id);
+      if (st.top === undefined || v > st.top) st.top = v;
+    };
+    for (let id = 1; id <= 100; id++) bump(id);
+    CORNER_IDS.forEach(bump);
+    for (let y = 450; y <= 549; y++) for (let x = 450; x <= 549; x++) bump(y * GRID + x);
+    return { projects, listings, sales, series, marketCap, holders: store.holders(), floor: store.floor(), tierStats };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version]);
 
@@ -48,6 +64,21 @@ export function MarketView({ onFocus }: Props) {
         <Kpi label="Volume" value={`${eth(store.volume, 3)} Ξ`} sub={`${store.sales.length} sales`} />
         <Kpi label="Holders" value={data.holders.toLocaleString()} sub={`${store.contents.size} publications`} />
         <Kpi label="Protocol fees" value={`${eth(store.fees, 4)} Ξ`} sub="2% of secondary" />
+      </section>
+
+      <section className="tier-cards">
+        {SPECIAL_TIERS.map((t) => {
+          const info = TIERS[t];
+          const st = data.tierStats.get(t)!;
+          return (
+            <button key={t} className="tier-card" style={{ borderColor: info.color }} onClick={() => onFocus(info.area)}>
+              <div className="tier-card-head" style={{ color: info.color }}>{info.emoji} {info.name}</div>
+              <div className="kpi-value">{st.minted.toLocaleString()} <span className="muted small">/ {info.total.toLocaleString()} claimed</span></div>
+              <div className="muted small">{info.rule}</div>
+              <div className="small">Floor {st.floor ? `${eth(st.floor, 5)} Ξ` : "—"} · Top {st.top ? `${eth(st.top, 5)} Ξ` : "—"}</div>
+            </button>
+          );
+        })}
       </section>
 
       {data.series.length > 1 && (
@@ -103,7 +134,7 @@ export function MarketView({ onFocus }: Props) {
               return (
                 <tr key={id} onClick={() => onFocus({ x, y, w: 1, h: 1 })}>
                   <td className="mono">({x}, {y})</td>
-                  <td>{store.contentAt(id)?.title || "—"}</td>
+                  <td>{tierOf(id) !== Tier.Standard && <span style={{ color: TIERS[tierOf(id) as 1 | 2 | 3].color }}>{TIERS[tierOf(id) as 1 | 2 | 3].emoji} </span>}{store.contentAt(id)?.title || "—"}</td>
                   <td><AddressLink a={l.seller} /></td>
                   <td className="r"><b>{eth(l.price, 5)} Ξ</b></td>
                 </tr>

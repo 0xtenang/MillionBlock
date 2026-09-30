@@ -7,6 +7,7 @@ import { store, useStoreVersion, type Content } from "../store";
 import { TxStatus, useTx } from "../tx";
 import { eth, rectIds, resolveMedia, safeLink, short, xyOf, type Rect } from "../utils";
 import { Sparkline } from "./Sparkline";
+import { SPECIAL_TIERS, TIERS, Tier, tierLabel, tierOf } from "../tiers";
 
 type Props = { selection: Rect; onClose: () => void };
 
@@ -27,8 +28,11 @@ export function SidePanel({ selection, onClose }: Props) {
       buyTotal: 0n,
       value: 0n,
       contents: new Map<number, number>(),
+      tiers: new Map<Tier, number>(),
     };
     for (const id of ids) {
+      const t = tierOf(id);
+      if (t !== Tier.Standard) s.tiers.set(t, (s.tiers.get(t) ?? 0) + 1);
       const owner = store.ownerOf(id)?.toLowerCase();
       if (!owner) { s.unminted.push(id); continue; }
       s.value += store.valueOf(id);
@@ -68,6 +72,18 @@ export function SidePanel({ selection, onClose }: Props) {
         <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
       </header>
 
+      {info.tiers.size > 0 && (
+        <div className="tier-badges">
+          {single !== null ? (
+            <TierBadge tier={tierOf(single)} label={tierLabel(single)!} />
+          ) : (
+            SPECIAL_TIERS.filter((t) => info.tiers.has(t)).map((t) => (
+              <TierBadge key={t} tier={t} label={`${info.tiers.get(t)} ${TIERS[t].emoji} ${TIERS[t].name}`} />
+            ))
+          )}
+        </div>
+      )}
+
       <div className="stats-row">
         <Stat label="Blocks" value={n.toLocaleString()} />
         <Stat label="Available" value={info.unminted.length.toLocaleString()} />
@@ -98,6 +114,15 @@ export function SidePanel({ selection, onClose }: Props) {
         <div className="note">Owned by others and not listed. Check back later, or ping the owner.</div>
       )}
     </aside>
+  );
+}
+
+function TierBadge({ tier, label }: { tier: Tier; label: string }) {
+  if (tier === Tier.Standard) return null;
+  return (
+    <span className="tier-badge" style={{ borderColor: TIERS[tier].color, color: TIERS[tier].color }} title={TIERS[tier].rule}>
+      {label}
+    </span>
   );
 }
 
@@ -215,7 +240,8 @@ function MintBox({ rect, count }: { rect: Rect; count: number }) {
   function submit() {
     if (!CONTRACT || !token) return;
     const base = [rect.x, rect.y, rect.w, rect.h] as const;
-    if (withContent)
+    const hasContent = !!(v.image.trim() || v.url.trim() || v.title.trim() || v.token.trim());
+    if (withContent && hasContent)
       tx.send({ address: CONTRACT, abi: millionBlockAbi, functionName: "mintAndSetContent", args: [...base, v.image, v.url, v.title, token], value: cost });
     else tx.send({ address: CONTRACT, abi: millionBlockAbi, functionName: "mint", args: base, value: cost });
   }

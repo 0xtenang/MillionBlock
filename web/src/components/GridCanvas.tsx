@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { GRID } from "../config";
 import { store, useStoreVersion } from "../store";
+import { CORNER_IDS, TIERS, Tier, tierOf } from "../tiers";
 import { heatColor, ownerColor, resolveMedia, type Rect } from "../utils";
 
 export type ViewMode = "map" | "market" | "owners";
@@ -63,7 +64,14 @@ export function GridCanvas({ mode, tool, selection, onSelect, onHover, myIdx, fo
       if (!oi) {
         const x = id % GRID, y = (id / GRID) | 0;
         const alt = ((x >> 3) + (y >> 3)) & 1;
-        r = 14 + alt * 3; g = 19 + alt * 3; b = 16 + alt * 3;
+        const t = tierOf(id);
+        if (t === Tier.Standard) { r = 14 + alt * 3; g = 19 + alt * 3; b = 16 + alt * 3; }
+        else {
+          // unclaimed special blocks glow faintly in their tier colour
+          const [tr, tg, tb] = TIERS[t].rgb;
+          const k = t === Tier.Center ? 0.1 + alt * 0.02 : 0.35;
+          r = 14 + (tr - 14) * k; g = 19 + (tg - 19) * k; b = 16 + (tb - 16) * k;
+        }
       } else if (mode === "market") {
         const listed = store.listings.get(id);
         if (listed) [r, g, b] = [60, 200, 255];
@@ -201,6 +209,8 @@ export function GridCanvas({ mode, tool, selection, onSelect, onHover, myIdx, fo
       ctx.stroke();
     }
 
+    drawTiers(ctx, scale, dpr, vx0, vy0, vx1, vy1);
+
     // board edge
     ctx.strokeStyle = "rgba(195,245,60,0.35)";
     ctx.lineWidth = 2 * px;
@@ -219,6 +229,56 @@ export function GridCanvas({ mode, tool, selection, onSelect, onHover, myIdx, fo
       ctx.strokeStyle = "rgba(255,255,255,0.9)";
       ctx.lineWidth = 1.5 * px;
       ctx.strokeRect(hx, hy, 1, 1);
+    }
+  }
+
+  // ---- special blocks: fixed-by-contract scarcity tiers ----------------------
+  function drawTiers(ctx: CanvasRenderingContext2D, scale: number, dpr: number, vx0: number, vy0: number, vx1: number, vy1: number) {
+    const px = 1 / scale;
+    const zoomed = scale * dpr >= 7;
+
+    // 🔥 Center: glowing frame around the middle 100x100
+    const c = TIERS[Tier.Center];
+    ctx.save();
+    ctx.strokeStyle = c.color;
+    ctx.shadowColor = c.color;
+    ctx.shadowBlur = 12 * dpr;
+    ctx.lineWidth = Math.max(2 * px, 0.25);
+    ctx.strokeRect(c.area.x, c.area.y, c.area.w, c.area.h);
+    ctx.restore();
+
+    // 👑 Genesis: gold strip, gold border per block when zoomed, crown on #1
+    const g = TIERS[Tier.Genesis];
+    ctx.strokeStyle = g.color;
+    ctx.lineWidth = Math.max(2 * px, zoomed ? 0.12 : 0);
+    ctx.strokeRect(g.area.x, g.area.y, g.area.w, g.area.h);
+    if (zoomed && vy0 < 1 && vx0 < 101) {
+      ctx.lineWidth = 0.1;
+      for (let x = Math.max(1, Math.floor(vx0)); x <= Math.min(100, Math.ceil(vx1)); x++) ctx.strokeRect(x + 0.05, 0.05, 0.9, 0.9);
+      if (vx0 < 2) {
+        ctx.font = "0.7px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("👑", 1.5, 0.55);
+      }
+    }
+
+    // ⭐ Corners: violet frames that stay visible when zoomed out
+    const k = TIERS[Tier.Corner];
+    const size = Math.max(1, 6 * px);
+    ctx.strokeStyle = k.color;
+    ctx.lineWidth = Math.max(1.5 * px, zoomed ? 0.1 : 0);
+    for (const id of CORNER_IDS) {
+      const x = id % GRID, y = Math.floor(id / GRID);
+      if (x + size < vx0 || x - size > vx1 || y + size < vy0 || y - size > vy1) continue;
+      const ox = x === 0 ? 0 : x + 1 - size, oy = y === 0 ? 0 : y + 1 - size;
+      ctx.strokeRect(ox, oy, size, size);
+      if (zoomed) {
+        ctx.font = "0.7px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("⭐", x + 0.5, y + 0.55);
+      }
     }
   }
 

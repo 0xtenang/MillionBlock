@@ -6,6 +6,7 @@ import { SidePanel } from "./components/SidePanel";
 import { CHAIN, CONTRACT, GRID } from "./config";
 import { store, useStoreVersion } from "./store";
 import { eth, short, xyOf, type Rect } from "./utils";
+import { SPECIAL_TIERS, TIERS, tierLabel, tierOf } from "./tiers";
 
 type Page = "map" | "market" | "about";
 
@@ -66,6 +67,13 @@ export function App() {
               <button className={tool === "select" ? "active" : ""} onClick={() => setTool("select")} title="Drag to select blocks">▦ Select</button>
               <button className={tool === "pan" ? "active" : ""} onClick={() => setTool("pan")} title="Drag to move around (or hold Space / right-drag)">✥ Pan</button>
             </div>
+            <div className="seg tier-jump">
+              {SPECIAL_TIERS.map((t) => (
+                <button key={t} onClick={() => focusOn(TIERS[t].area)} title={TIERS[t].rule} style={{ color: TIERS[t].color }}>
+                  {TIERS[t].emoji} {TIERS[t].name}
+                </button>
+              ))}
+            </div>
             <span className="hint">Drag to select · scroll to zoom · 0.0004 Ξ per block</span>
           </div>
           {mode === "market" && (
@@ -107,7 +115,8 @@ function HoverCard({ id, x, y }: { id: number; x: number; y: number }) {
   const l = store.listings.get(id);
   return (
     <div className="hover-card" style={{ left: x + 14, top: y + 14 }}>
-      <div className="mono small">({bx}, {by})</div>
+      <div className="mono small">#{id} · ({bx}, {by})</div>
+      {tierLabel(id) && <div className="small" style={{ color: TIERS[tierOf(id) as 1 | 2 | 3].color, fontWeight: 650 }}>{tierLabel(id)}</div>}
       {c && !c.hidden && c.title && <div className="content-title">{c.title}</div>}
       {owner ? (
         <>
@@ -172,6 +181,13 @@ function About() {
         <div><h3>Mint</h3><p>Any unclaimed block costs <b>0.0004 ETH</b>. Select a rectangle (up to 20×20 per transaction) and mint it straight from the protocol.</p></div>
         <div><h3>Publish</h3><p>Attach an image, a website, a title and your token or project contract. Content is stored on-chain and shows across your whole rectangle.</p></div>
         <div><h3>Trade</h3><p>List any block you own at your own price. Buyers pay the seller directly; the protocol keeps a <b>2% fee</b> on every secondary sale. No approvals needed.</p></div>
+        <div><h3>Special blocks</h3><p>A few positions are naturally scarce. The rules are fixed in the contract from day one and nobody can change them, including the team. Every tier costs the same 0.0004 ETH to mint; the market decides what they are worth.</p>
+          <ul className="tier-rules">
+            {SPECIAL_TIERS.map((t) => (
+              <li key={t}><b style={{ color: TIERS[t].color }}>{TIERS[t].emoji} {TIERS[t].name}</b> ({TIERS[t].total.toLocaleString()}): {TIERS[t].rule}</li>
+            ))}
+          </ul>
+        </div>
         <div><h3>Watch value</h3><p>Every sale updates the block's last price. Switch the map to Heatmap to see where the ecosystem's hottest real estate is.</p></div>
       </div>
       <p className="muted small">

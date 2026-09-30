@@ -80,7 +80,8 @@ describe("MillionBlock", function () {
       await mb.connect(alice).mintAndSetContent(5, 7, 1, 1, "https://img", "https://site", 'He said "gm"\\', ethers.ZeroAddress, { value: PRICE });
       const uri = await mb.tokenURI(id(5, 7));
       const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
-      expect(json.name).to.equal("MillionBlock (5,7)");
+      expect(json.name).to.equal("MillionBlock #7005");
+      expect(json.attributes.find((a) => a.trait_type === "tier").value).to.equal("Standard");
       expect(json.image).to.equal("https://img");
       expect(json.attributes.find((a) => a.trait_type === "title").value).to.equal('He said "gm"\\');
     });
@@ -148,6 +149,55 @@ describe("MillionBlock", function () {
       await mb.connect(bob).buy([0], { value: 5000n });
       expect(await mb.pendingWithdrawals(await rej.getAddress())).to.equal(4900n);
       expect(await mb.ownerOf(0)).to.equal(bob.address);
+    });
+  });
+
+  describe("scarcity tiers", function () {
+    const STANDARD = 0n, GENESIS = 1n, CENTER = 2n, CORNER = 3n;
+
+    it("assigns tiers purely by position, with exact boundaries", async function () {
+      const { mb } = await loadFixture(deploy);
+      const cases = [
+        [id(0, 0), CORNER], [id(999, 0), CORNER], [id(0, 999), CORNER], [id(999, 999), CORNER],
+        [1, GENESIS], [2, GENESIS], [100, GENESIS], [101, STANDARD], [998, STANDARD],
+        [id(450, 450), CENTER], [id(549, 549), CENTER], [id(500, 500), CENTER], [id(450, 549), CENTER],
+        [id(449, 500), STANDARD], [id(550, 500), STANDARD], [id(500, 449), STANDARD], [id(500, 550), STANDARD],
+        [id(1, 1), STANDARD], [id(998, 999), STANDARD],
+      ];
+      for (const [tokenId, tier] of cases) expect(await mb.tierOf(tokenId), `token ${tokenId}`).to.equal(tier);
+      await expect(mb.tierOf(1_000_000)).to.be.revertedWithCustomError(mb, "OutOfBounds");
+      expect(await mb.GENESIS_FIRST()).to.equal(1);
+      expect(await mb.GENESIS_LAST()).to.equal(100);
+      expect(await mb.CENTER_MIN()).to.equal(450);
+      expect(await mb.CENTER_MAX()).to.equal(549);
+    });
+
+    it("special blocks cost the same primary price", async function () {
+      const { mb, alice } = await loadFixture(deploy);
+      await mb.connect(alice).mint(0, 0, 20, 1, { value: PRICE * 20n }); // corner + 19 genesis
+      await mb.connect(alice).mint(490, 490, 20, 20, { value: PRICE * 400n }); // center
+      expect(await mb.balanceOf(alice.address)).to.equal(420);
+    });
+
+    it("exposes tier in getBlocks and tokenURI", async function () {
+      const { mb, alice } = await loadFixture(deploy);
+      await mb.connect(alice).mint(0, 0, 2, 1, { value: PRICE * 2n });
+      const [corner, genesis] = await mb.getBlocks([0, 1]);
+      expect(corner.tier).to.equal(CORNER);
+      expect(genesis.tier).to.equal(GENESIS);
+      const json = JSON.parse(Buffer.from((await mb.tokenURI(1)).split(",")[1], "base64").toString());
+      expect(json.name).to.equal("MillionBlock #1 Genesis");
+      expect(json.attributes.find((a) => a.trait_type === "tier").value).to.equal("Genesis");
+      const svg = Buffer.from(json.image.split(",")[1], "base64").toString();
+      expect(svg).to.contain("#ffd24a").and.to.contain("Genesis");
+    });
+
+    it("has no function that can change tiers", async function () {
+      const { mb } = await loadFixture(deploy);
+      const writable = mb.interface.fragments
+        .filter((f) => f.type === "function" && !["view", "pure"].includes(f.stateMutability))
+        .map((f) => f.name);
+      expect(writable.filter((n) => /tier|genesis|center|corner/i.test(n))).to.deep.equal([]);
     });
   });
 

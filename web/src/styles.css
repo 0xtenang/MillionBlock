@@ -178,3 +178,15 @@ button.ghost { background: transparent; border: 1px solid var(--line); border-ra
   .market, .about { padding: 16px; }
   .stats-row { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* scarcity tiers */
+.tier-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.tier-badge { border: 1px solid; border-radius: 999px; padding: 3px 10px; font-size: 13px; font-weight: 650; background: rgba(255, 255, 255, 0.03); }
+.tier-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-top: 14px; }
+.tier-card {
+  text-align: left; background: var(--panel); border: 1px solid; border-radius: var(--radius); padding: 14px;
+  display: grid; gap: 4px; color: var(--text);
+}
+.tier-card:hover { background: var(--panel-2); }
+.tier-card-head { font-weight: 700; }
+.tier-rules { margin: 10px 0 0; padding-left: 18px; font-size: 14px; line-height: 1.6; color: #c7d3c5; }

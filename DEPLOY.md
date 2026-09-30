@@ -73,6 +73,7 @@ Under **Deployed Contracts**, expand `MILLIONBLOCK AT 0x…` and click these blu
 - `treasury` should show `0x3c8A4d94B3219F6633F2cC94094f4765b30c691C`.
 - `owner` should show your wallet address.
 - `PRIMARY_PRICE` should show `400000000000000` (0.0004 ETH).
+- `tierOf` with `1` should show `1` (Genesis). With `500500` it should show `2` (Center), and with `0` it should show `3` (Corner).
 
 Then write down:
 - **Contract address**: click the copy icon next to `MILLIONBLOCK AT 0x…`.
@@ -132,4 +133,4 @@ Click **Deploy**. You get a URL like `millionblock-xyz.vercel.app`.
 - **Audit.** The contract has 13 passing automated tests but no professional audit yet. Consider one, or at least a review, before large amounts of money flow through it.
 - **Owner key safety.** Your deploy wallet is the owner. You can move ownership to a Safe multisig later: call `transferOwnership(<safe address>)` in Remix.
 - **Verify the source** on Blockscout so users can read the code. On the contract's Blockscout page choose **Verify & Publish**, select Solidity single-file, compiler `0.8.28`, optimization **Yes, 200 runs**, and paste `MillionBlock_flat.sol`.
-- **The constants are permanent:** 0.0004 ETH per block, the 2% fee and 1,000,000 blocks can never be changed. Only the treasury address can change, through `setTreasury`.
+- **The constants are permanent:** 0.0004 ETH per block, the 2% fee, 1,000,000 blocks and the special tiers (Genesis #1–#100, Center 100×100, 4 Corners) can never be changed. Only the treasury address can change, through `setTreasury`.

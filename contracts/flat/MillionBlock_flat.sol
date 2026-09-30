@@ -4669,12 +4669,29 @@ contract MillionBlock is ERC721, ERC2981, Ownable, ReentrancyGuard {
     /// @notice Max blocks per list / buy call.
     uint256 public constant MAX_TRADE_BATCH = 200;
 
+    // Special positions. Fixed forever by position; nobody can add, remove or re-tier blocks.
+    /// @notice Genesis blocks: token ids #1..#100 (top row, next to the top-left corner).
+    uint256 public constant GENESIS_FIRST = 1;
+    uint256 public constant GENESIS_LAST = 100;
+    /// @notice Center blocks: the middle 100x100 square, x and y in [450, 549].
+    uint256 public constant CENTER_MIN = 450;
+    uint256 public constant CENTER_MAX = 549;
+    // Corner blocks: (0,0) #0, (999,0) #999, (0,999) #999000, (999,999) #999999.
+
     uint256 private constant MAX_TEXT = 256;
     uint256 private constant MAX_URI = 2048;
 
     // ---------------------------------------------------------------------
     // Types
     // ---------------------------------------------------------------------
+
+    /// @notice Scarcity tier of a block, derived purely from its position (see tierOf).
+    enum Tier {
+        Standard,
+        Genesis,
+        Center,
+        Corner
+    }
 
     struct Content {
         address creator; // owner who published it
@@ -4694,6 +4711,7 @@ contract MillionBlock is ERC721, ERC2981, Ownable, ReentrancyGuard {
         uint32 contentId; // 0 = no content
         uint256 listPrice; // 0 = not listed
         uint256 lastPrice; // last price paid (primary or secondary)
+        Tier tier;
     }
 
     // ---------------------------------------------------------------------
@@ -4999,6 +5017,21 @@ contract MillionBlock is ERC721, ERC2981, Ownable, ReentrancyGuard {
         return (tokenId % GRID_SIZE, tokenId / GRID_SIZE);
     }
 
+    /**
+     * @notice Scarcity tier of a block. Pure function of the token id: the rules are
+     * public from day one and cannot be changed by anyone, including the owner.
+     * Every tier costs the same PRIMARY_PRICE; scarcity is priced by the market.
+     */
+    function tierOf(uint256 tokenId) public pure returns (Tier) {
+        if (tokenId >= MAX_BLOCKS) revert OutOfBounds();
+        uint256 x = tokenId % GRID_SIZE;
+        uint256 y = tokenId / GRID_SIZE;
+        if ((x == 0 || x == GRID_SIZE - 1) && (y == 0 || y == GRID_SIZE - 1)) return Tier.Corner;
+        if (tokenId >= GENESIS_FIRST && tokenId <= GENESIS_LAST) return Tier.Genesis;
+        if (x >= CENTER_MIN && x <= CENTER_MAX && y >= CENTER_MIN && y <= CENTER_MAX) return Tier.Center;
+        return Tier.Standard;
+    }
+
     function contentCount() external view returns (uint256) {
         return _contents.length - 1;
     }
@@ -5022,7 +5055,8 @@ contract MillionBlock is ERC721, ERC2981, Ownable, ReentrancyGuard {
                 owner: o,
                 contentId: contentIdOf(id),
                 listPrice: listPrice[id],
-                lastPrice: o == address(0) ? 0 : (lastPrice[id] == 0 ? PRIMARY_PRICE : lastPrice[id])
+                lastPrice: o == address(0) ? 0 : (lastPrice[id] == 0 ? PRIMARY_PRICE : lastPrice[id]),
+                tier: tierOf(id)
             });
         }
     }
@@ -5034,13 +5068,13 @@ contract MillionBlock is ERC721, ERC2981, Ownable, ReentrancyGuard {
         Content storage c = _contents[cid];
         bool show = cid != 0 && !c.hidden;
 
+        Tier tier = tierOf(tokenId);
         bytes memory head = abi.encodePacked(
-            '{"name":"MillionBlock (',
-            x.toString(),
-            ",",
-            y.toString(),
-            ')","description":"One of 1,000,000 blocks on the MillionBlock homepage, the living map of Robinhood Chain.","image":"',
-            _escape(show && bytes(c.image).length > 0 ? c.image : _placeholder(x, y)),
+            '{"name":"MillionBlock #',
+            tokenId.toString(),
+            tier == Tier.Standard ? "" : string.concat(" ", _tierName(tier)),
+            '","description":"One of 1,000,000 blocks on the MillionBlock homepage, the living map of Robinhood Chain.","image":"',
+            _escape(show && bytes(c.image).length > 0 ? c.image : _placeholder(tokenId, x, y, tier)),
             '","external_url":"',
             show ? _escape(c.url) : ""
         );
@@ -5059,7 +5093,9 @@ contract MillionBlock is ERC721, ERC2981, Ownable, ReentrancyGuard {
     {
         uint256 lp = lastPrice[tokenId] == 0 ? PRIMARY_PRICE : lastPrice[tokenId];
         return abi.encodePacked(
-            '","attributes":[{"trait_type":"x","value":',
+            '","attributes":[{"trait_type":"tier","value":"',
+            _tierName(tierOf(tokenId)),
+            '"},{"trait_type":"x","value":',
             x.toString(),
             '},{"trait_type":"y","value":',
             y.toString(),
@@ -5103,14 +5139,34 @@ contract MillionBlock is ERC721, ERC2981, Ownable, ReentrancyGuard {
         _contentSlots[slot] = (v & ~(uint256(type(uint32).max) << shift)) | (uint256(contentId) << shift);
     }
 
-    function _placeholder(uint256 x, uint256 y) internal pure returns (string memory) {
+    function _tierName(Tier t) internal pure returns (string memory) {
+        if (t == Tier.Genesis) return "Genesis";
+        if (t == Tier.Center) return "Center";
+        if (t == Tier.Corner) return "Corner";
+        return "Standard";
+    }
+
+    function _placeholder(uint256 tokenId, uint256 x, uint256 y, Tier tier) internal pure returns (string memory) {
+        string memory color = tier == Tier.Genesis
+            ? "#ffd24a"
+            : tier == Tier.Center
+                ? "#ff7a1a"
+                : tier == Tier.Corner
+                    ? "#b18cff"
+                    : "#c3f53c";
         bytes memory svg = abi.encodePacked(
             "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='#0b0f0c'/>",
-            "<rect x='8' y='8' width='84' height='84' fill='none' stroke='#c3f53c' stroke-width='3'/>",
-            "<text x='50' y='56' font-family='monospace' font-size='12' fill='#c3f53c' text-anchor='middle'>",
-            x.toString(),
-            ",",
-            y.toString(),
+            "<rect x='8' y='8' width='84' height='84' fill='none' stroke='",
+            color,
+            tier == Tier.Standard ? "' stroke-width='3'/>" : "' stroke-width='6'/>",
+            "<text x='50' y='46' font-family='monospace' font-size='13' fill='",
+            color,
+            "' text-anchor='middle'>#",
+            tokenId.toString(),
+            "</text><text x='50' y='64' font-family='monospace' font-size='9' fill='",
+            color,
+            "' text-anchor='middle'>",
+            tier == Tier.Standard ? string.concat(x.toString(), ",", y.toString()) : _tierName(tier),
             "</text></svg>"
         );
         return string(abi.encodePacked("data:image/svg+xml;base64,", Base64.encode(svg)));

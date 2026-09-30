@@ -630,12 +630,64 @@ export const millionBlockAbi = [
   },
   {
     "inputs": [],
+    "name": "CENTER_MAX",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "CENTER_MIN",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "FEE_BPS",
     "outputs": [
       {
         "internalType": "uint96",
         "name": "",
         "type": "uint96"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "GENESIS_FIRST",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "GENESIS_LAST",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -888,6 +940,11 @@ export const millionBlockAbi = [
             "internalType": "uint256",
             "name": "lastPrice",
             "type": "uint256"
+          },
+          {
+            "internalType": "enum MillionBlock.Tier",
+            "name": "tier",
+            "type": "uint8"
           }
         ],
         "internalType": "struct MillionBlock.BlockInfo[]",
@@ -1416,6 +1473,25 @@ export const millionBlockAbi = [
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "tierOf",
+    "outputs": [
+      {
+        "internalType": "enum MillionBlock.Tier",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "pure",
     "type": "function"
   },
   {
