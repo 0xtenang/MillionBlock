@@ -71,6 +71,16 @@ tokenURI(): fully on-chain JSON → "image": "ipfs://<CID>"
 
 > **New to deploying?** Follow [DEPLOY.md](DEPLOY.md). It walks through deploying from the browser with Remix and MetaMask, then hosting on Vercel, with no terminal needed.
 
+## Live deployment
+
+| | |
+|---|---|
+| Network | Robinhood Chain mainnet (4663) |
+| Contract | [`0xECb6c8b11fcC521C3262F17D0ce55Eb2819Dadb8`](https://robinhoodchain.blockscout.com/address/0xECb6c8b11fcC521C3262F17D0ce55Eb2819Dadb8) |
+| Deploy block | 76614461 |
+| Deploy tx | [`0x3daff208…d3d58b`](https://robinhoodchain.blockscout.com/tx/0x3daff208730faf7eac32e925a7a12f88adec6d8458a7c33202bbd44190d3d58b) |
+| Owner / treasury | `0x3c8A4d94B3219F6633F2cC94094f4765b30c691C` |
+
 ## Repo layout
 
 ```
