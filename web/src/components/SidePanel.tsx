@@ -5,7 +5,8 @@ import { millionBlockAbi } from "../abi";
 import { CONTRACT, FEE_BPS, MAX_BLOCKS_PER_TX, MAX_TRADE_BATCH, PRIMARY_PRICE, explorer } from "../config";
 import { store, useStoreVersion, type Content } from "../store";
 import { TxStatus, useTx } from "../tx";
-import { eth, rectIds, resolveMedia, safeLink, short, xyOf, type Rect } from "../utils";
+import { eth, ipfsFallback, rectIds, resolveMedia, safeLink, short, xyOf, type Rect } from "../utils";
+import { permanenceOf, prepareImage, uploadToIpfs } from "../storage";
 import { Sparkline } from "./Sparkline";
 import { STATUS, fmtPct, fmtUsd, market, statusOf, useMarketVersion } from "../market";
 import { SPECIAL_TIERS, TIERS, Tier, tierLabel, tierOf } from "../tiers";
@@ -146,7 +147,7 @@ function ContentCard({ c }: { c: Content }) {
   return (
     <>
     <div className="content-card">
-      {img && <img src={img} alt={c.title} referrerPolicy="no-referrer" />}
+      {img && <img src={img} alt={c.title} referrerPolicy="no-referrer" onError={retryIpfs} />}
       <div className="content-meta">
         <div className="content-title">{c.title || "Untitled"}</div>
         {link && (
@@ -161,6 +162,9 @@ function ContentCard({ c }: { c: Content }) {
               <a href={`${explorer}/token/${c.token}`} target="_blank" rel="noreferrer">{short(c.token)} ↗</a>
             ) : short(c.token)}
           </div>
+        )}
+        {permanenceOf(c.image) && (
+          <div className={`small ${permanenceOf(c.image)!.permanent ? "accent" : "warn-text"}`}>{permanenceOf(c.image)!.label}</div>
         )}
         <div className="muted small">
           {stats.blocks} blocks · worth {eth(stats.value)} Ξ{stats.listed ? ` · ${stats.listed} for sale` : ""}
@@ -220,15 +224,47 @@ export function AddressLink({ a }: { a: Address }) {
 
 // ---- actions -----------------------------------------------------------------
 
-function ContentFields({ v, set }: { v: ContentInput; set: (v: ContentInput) => void }) {
+function retryIpfs(e: React.SyntheticEvent<HTMLImageElement>) {
+  const alt = ipfsFallback(e.currentTarget.src);
+  if (alt) e.currentTarget.src = alt;
+}
+
+function ContentFields({ v, set, rect }: { v: ContentInput; set: (v: ContentInput) => void; rect: Rect }) {
   const preview = resolveMedia(v.image);
+  const perm = permanenceOf(v.image);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string>();
+
+  async function onFile(file?: File) {
+    if (!file) return;
+    setUploadError(undefined);
+    setUploading(true);
+    try {
+      const blob = await prepareImage(file, rect);
+      set({ ...v, image: await uploadToIpfs(blob) });
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return (
     <div className="fields">
+      <div className="upload-row">
+        <label className={`upload-btn ${uploading ? "busy" : ""}`}>
+          <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploading} onChange={(e) => onFile(e.target.files?.[0])} />
+          {uploading ? "Pinning to IPFS…" : "⬆ Upload image to IPFS"}
+        </label>
+        <span className="muted small">Cropped to {rect.w}×{rect.h}, stored permanently</span>
+      </div>
+      {uploadError && <div className="note warn">{uploadError}</div>}
       <label>
-        Image URL <span className="muted">(https://, ipfs://, ar://)</span>
+        Image <span className="muted">(ipfs://, ar://, or https:// link)</span>
         <input value={v.image} onChange={(e) => set({ ...v, image: e.target.value })} placeholder="ipfs://… or https://…/logo.png" />
       </label>
-      {preview && <img className="preview" src={preview} alt="" referrerPolicy="no-referrer" />}
+      {perm && <div className={`small ${perm.permanent ? "accent" : "warn-text"}`}>{perm.label}</div>}
+      {preview && <img className="preview" src={preview} alt="" referrerPolicy="no-referrer" onError={retryIpfs} />}
       <label>
         Website
         <input value={v.url} onChange={(e) => set({ ...v, url: e.target.value })} placeholder="https://yourproject.xyz" />
@@ -281,7 +317,7 @@ function MintBox({ rect, count }: { rect: Rect; count: number }) {
       <label className="check">
         <input type="checkbox" checked={withContent} onChange={(e) => setWithContent(e.target.checked)} /> Publish content in the same tx
       </label>
-      {withContent && <ContentFields v={v} set={setV} />}
+      {withContent && <ContentFields v={v} set={setV} rect={rect} />}
       {!token && <div className="note warn">Token address is invalid.</div>}
       <button className="primary" disabled={!tx.isConnected || tooBig || tx.busy || !CONTRACT || !token} onClick={submit}>
         {tx.isConnected ? `Mint for ${eth(cost, 6)} Ξ` : "Connect wallet to mint"}
@@ -307,7 +343,7 @@ function ContentBox({ rect, existing }: { rect: Rect; existing?: Content }) {
       </div>
       {open && (
         <>
-          <ContentFields v={v} set={setV} />
+          <ContentFields v={v} set={setV} rect={rect} />
           {tooBig && <div className="note warn">Max {MAX_BLOCKS_PER_TX} blocks per update.</div>}
           <button
             className="primary"

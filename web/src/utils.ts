@@ -26,9 +26,17 @@ export const blockNo = (id: number) => `#${String(id).padStart(4, "0")}`;
 export const short = (a?: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "");
 
 /** Resolve user supplied image refs into something an <img> can load. */
+// First gateway is used by default; the second is a fallback if an image fails to load.
+export const IPFS_GATEWAYS = [import.meta.env.VITE_IPFS_GATEWAY || "https://ipfs.io/ipfs/", "https://dweb.link/ipfs/"];
+
+/** If `src` came from the primary IPFS gateway, the same file on the fallback gateway. */
+export function ipfsFallback(src: string): string | null {
+  return src.startsWith(IPFS_GATEWAYS[0]) ? IPFS_GATEWAYS[1] + src.slice(IPFS_GATEWAYS[0].length) : null;
+}
+
 export function resolveMedia(uri: string): string | null {
   if (!uri) return null;
-  if (uri.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${uri.slice(7).replace(/^ipfs\//, "")}`;
+  if (uri.startsWith("ipfs://")) return `${IPFS_GATEWAYS[0]}${uri.slice(7).replace(/^ipfs\//, "")}`;
   if (uri.startsWith("ar://")) return `https://arweave.net/${uri.slice(5)}`;
   if (/^https?:\/\//i.test(uri) || uri.startsWith("data:image/")) return uri;
   return null;

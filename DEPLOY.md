@@ -96,6 +96,10 @@ Then write down:
 | `VITE_CONTRACT_ADDRESS` | your contract address from step 8 |
 | `VITE_DEPLOY_BLOCK` | your deploy block number from step 8 |
 | `VITE_RPC_URL` | *(optional)* your QuickNode/Alchemy URL, if the public RPC is blocked or slow |
+| `PINATA_JWT` | lets users upload images to IPFS (see below) |
+
+**Getting `PINATA_JWT`** (free, about 2 minutes): sign up at https://app.pinata.cloud, go to **API Keys → New Key**, turn on **Admin** (or at least `pinFileToIPFS`), create it, and copy the **JWT**. It's the long `eyJ…` string. Paste it into Vercel as `PINATA_JWT`.
+> Don't prefix it with `VITE_`. It must stay on the server. Without it the site still works, but users have to paste an `ipfs://` or `https://` link themselves.
 
 ### 11. Deploy
 Click **Deploy**. You get a URL like `millionblock-xyz.vercel.app`.

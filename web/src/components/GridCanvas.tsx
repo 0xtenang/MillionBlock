@@ -4,7 +4,7 @@ import { store, useStoreVersion } from "../store";
 import { CORNER_IDS, TIERS, Tier, tierOf } from "../tiers";
 import { STATUS, fmtPct, fmtUsd, market, statusOf, useMarketVersion, type TokenMarket } from "../market";
 import type { Content } from "../store";
-import { heatColor, ownerColor, resolveMedia, type Rect } from "../utils";
+import { heatColor, ipfsFallback, ownerColor, resolveMedia, type Rect } from "../utils";
 
 export type ViewMode = "map" | "live" | "market" | "owners";
 export type Tool = "select" | "pan";
@@ -234,7 +234,11 @@ export function GridCanvas({ mode, tool, selection, onSelect, onHover, myIdx, fo
       el.decoding = "async";
       el.referrerPolicy = "no-referrer";
       el.onload = () => { imageCache.set(src, el); requestDraw(); };
-      el.onerror = () => imageCache.set(src, "error");
+      el.onerror = () => {
+        const alt = ipfsFallback(el.src);
+        if (alt) el.src = alt; // retry once on the fallback IPFS gateway
+        else imageCache.set(src, "error");
+      };
       el.src = src;
       return null;
     }
